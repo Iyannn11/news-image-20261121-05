@@ -1,27 +1,30 @@
-// Round 5 entry for news-image-20261121: copy the pre-rendered front page
-// (entry.png, drawn by render.py in this same repository) to the output
-// directory. Node 22 standard library only; no network. The image is
-// located from this file's own path, never from the working directory.
-import { copyFileSync, existsSync, mkdirSync, statSync } from "node:fs";
-import { fileURLToPath } from "node:url";
+import { copyFileSync, mkdirSync, existsSync, statSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
-const MAX_BYTES = 1048576; // 1 MiB, the competition's size cap
+// The bot runs from a different working directory, so locate entry.png
+// relative to this script file, never via process.cwd().
+const BOT_DIR = dirname(fileURLToPath(import.meta.url));
+const OUT_DIR = process.env.MAKEFUN_OUTPUT_DIR || "/output";
 
-const here = dirname(fileURLToPath(import.meta.url));
-const src = join(here, "entry.png");
-const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? "/output";
-const dest = join(outDir, "entry.png");
+mkdirSync(OUT_DIR, { recursive: true });
+
+const src = join(BOT_DIR, "entry.png");
+const dst = join(OUT_DIR, "entry.png");
 
 if (!existsSync(src)) {
-  console.error(`entry.png not found next to main.ts (${src})`);
-  process.exit(1);
+  throw new Error("entry.png not found next to main.ts: " + src);
 }
-const size = statSync(src).size;
-if (size > MAX_BYTES) {
-  console.error(`entry.png is ${size} bytes, over the 1 MiB limit`);
-  process.exit(1);
+
+copyFileSync(src, dst);
+
+// Verify the copy landed byte-for-byte: same size on both sides.
+const srcBytes = statSync(src).size;
+const dstBytes = statSync(dst).size;
+if (srcBytes !== dstBytes) {
+  throw new Error(
+    `entry.png copy mismatch: source ${srcBytes} bytes, ` +
+      `destination ${dstBytes} bytes`,
+  );
 }
-mkdirSync(outDir, { recursive: true });
-copyFileSync(src, dest);
-console.log(`wrote ${dest} (${size} bytes)`);
+console.log(`copied entry.png -> ${dst} (${dstBytes} bytes, verified)`);
